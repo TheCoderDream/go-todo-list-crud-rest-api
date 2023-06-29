@@ -16,6 +16,8 @@ func initRouter() *mux.Router {
 
 	router.
 		Handle("/tasks", middleware.Authenticate(http.HandlerFunc(taskHandler.CreateTask))).Methods("POST")
+	router.
+		Handle("/tasks", middleware.Authenticate(http.HandlerFunc(taskHandler.GetTasks))).Methods("GET")
 	router.Handle("/tasks/{id}", middleware.Authenticate(http.HandlerFunc(taskHandler.GetTask))).Methods("GET")
 	router.Handle("/tasks/{id}", middleware.Authenticate(http.HandlerFunc(taskHandler.DeleteTask))).Methods("DELETE")
 	router.Handle("/tasks/{id}", middleware.Authenticate(http.HandlerFunc(taskHandler.UpdateTask))).Methods("PUT")

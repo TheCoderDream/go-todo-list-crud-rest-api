@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/mux"
+	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"todo-list/db"
+	"todo-list/pagination"
 	user "todo-list/user"
 )
 
@@ -147,6 +150,66 @@ func (h *Handler) MarkTaskAs(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *Handler) updatePriority() {
+func (h *Handler) GetTasks(w http.ResponseWriter, r *http.Request) {
+	dueDate := r.URL.Query().Get("dueDate")
+	priority := r.URL.Query().Get("priority")
+	sortBy := r.URL.Query().Get("sortBy")
+
+	page, offset, limit := pagination.GetPaginationOffsetAndLimit(r)
+
+	query := db.Db.Model(&Task{})
+
+	if dueDate != "" {
+		query = query.Where("due_date = ?", dueDate)
+	}
+
+	if priority != "" {
+		query = query.Where("priority = ?", priority)
+	}
+
+	var sortField, sortOrder string
+
+	if strings.Contains(sortBy, ".") {
+		split := strings.Split(sortBy, ".")
+		sortField = split[0]
+		sortOrder = split[1]
+	} else {
+		sortField = sortBy
+		sortOrder = "asc"
+	}
+
+	switch sortField {
+	case "dueDate":
+		query = query.Order("due_date " + sortOrder)
+	case "priority":
+		query = query.Order("priority " + sortOrder)
+
+	}
+
+	var totalRecords int64
+	query.Count(&totalRecords)
+
+	var tasks []Task
+
+	result := query.Offset(offset).Limit(limit).Find(&tasks)
+
+	if result.Error != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(result.Error)
+		return
+	}
+
+	totalPages := int(math.Ceil(float64(totalRecords) / float64(limit)))
+
+	response := pagination.Pagination[Task]{
+		TotalRecords: totalRecords,
+		PageSize:     limit,
+		CurrentPage:  page,
+		TotalPages:   totalPages,
+		Data:         tasks,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 
 }
